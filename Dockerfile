@@ -1,16 +1,19 @@
-# Stage 1: Build the Vite application
-FROM node:18-alpine AS build
+FROM node:20-slim
+
+# Install OpenSSL for Prisma SQLite support
+RUN apt-get update -y && apt-get install -y openssl
+
 WORKDIR /app
+
+# Install dependencies first (for caching)
 COPY package*.json ./
-RUN npm ci
+RUN npm install
+
+# Copy application files
 COPY . .
+
+# Build the frontend and Prisma client
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
-# Copy the custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Copy the built assets from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3001
+CMD ["npm", "start"]
