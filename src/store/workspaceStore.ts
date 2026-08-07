@@ -44,6 +44,10 @@ interface WorkspaceState {
   updateTask: (id: string, task: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 
+  // Payroll Actions
+  updatePayrollStatus: (id: string, status: PayrollStatus) => void;
+  addPayrollEntry: (entry: PayrollEntry) => void;
+
   // Getters
   getTasksByDepartment: (deptId: string) => Task[];
   getTasksByAssignee: (userId: string) => Task[];
@@ -209,6 +213,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) }));
     }
   },
+
+  updatePayrollStatus: (id, status) =>
+    set((state) => ({
+      payroll: state.payroll.map((entry) =>
+        entry.id === id ? { ...entry, status } : entry
+      ),
+    })),
+    
+  addPayrollEntry: (entry) =>
+    set((state) => ({ payroll: [...state.payroll, entry] })),
 
   getTasksByDepartment: (deptId: string) => {
     return get().tasks.filter((task) => (task as any).departmentId === deptId || task.projectId === deptId); 

@@ -16,8 +16,8 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => void;
   setUser: (user: User | null) => void;
   inviteUser: (email: string, name: string, role: Role, departmentId: string) => Promise<void>;
-  acceptInvitation: (invitationId: string) => void;
-  declineInvitation: (invitationId: string) => void;
+  acceptInvitation: (invitationId: string) => Promise<void>;
+  declineInvitation: (invitationId: string) => Promise<void>;
   updateUserRole: (userId: string, newRole: Role, departmentId?: string) => void;
   removeUser: (userId: string) => void;
   getUsersByDepartment: (departmentId: string) => User[];
@@ -131,19 +131,56 @@ export const useAuthStore = create<AuthState>()(
           });
           if (res.ok) {
             const users = await res.json();
-            set({ allUsers: users });
+            
+            const verifiedUsers = users.filter((u: any) => u.isVerified);
+            const pendingInvitations = users.filter((u: any) => !u.isVerified).map((u: any) => ({
+              id: u.id,
+              email: u.email,
+              name: u.name,
+              role: u.role,
+              departmentId: u.teamId,
+              status: 'pending',
+              invitedBy: 'admin',
+              createdAt: u.createdAt
+            }));
+
+            set({ allUsers: verifiedUsers, invitations: pendingInvitations });
           }
         } catch (error) {
           console.error('Failed to fetch users', error);
         }
       },
 
-      acceptInvitation: (invitationId: string) => {
-        // Implement when invitations DB table exists
+      acceptInvitation: async (invitationId: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+          const res = await fetch(`/api/auth/invitations/${invitationId}/accept`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            await get().fetchUsers();
+          }
+        } catch (error) {
+          console.error(error);
+        }
       },
 
-      declineInvitation: (invitationId: string) => {
-        // Implement when invitations DB table exists
+      declineInvitation: async (invitationId: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+          const res = await fetch(`/api/auth/invitations/${invitationId}/decline`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            await get().fetchUsers();
+          }
+        } catch (error) {
+          console.error(error);
+        }
       },
 
       updateUserRole: (userId: string, newRole: Role, departmentId?: string) => {
@@ -155,7 +192,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       getUsersByDepartment: (departmentId: string) => {
-        return get().allUsers.filter(u => u.teamId === departmentId || (u as any).departmentId === departmentId);
+        return get().allUsers.filter(u => (u as any).teamId === departmentId || u.departmentId === departmentId);
       }
     }),
     {

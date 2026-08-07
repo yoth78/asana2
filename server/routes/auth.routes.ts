@@ -129,7 +129,8 @@ router.post('/invite', authenticate, async (req: any, res) => {
         name,
         role: role || 'MEMBER',
         passwordHash: tempPasswordHash,
-        isVerified: false
+        isVerified: false,
+        teamId: departmentId // Map departmentId to teamId
       }
     });
 
@@ -140,6 +141,31 @@ router.post('/invite', authenticate, async (req: any, res) => {
     mockEmailService.sendInvitation(email, inviteUrl);
 
     res.json({ message: 'Invitation sent' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/invitations/:id/accept', authenticate, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.update({
+      where: { id },
+      data: { isVerified: true }
+    });
+    res.json({ message: 'Invitation accepted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/invitations/:id/decline', authenticate, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.delete({
+      where: { id }
+    });
+    res.json({ message: 'Invitation declined' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
