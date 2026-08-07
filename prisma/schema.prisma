@@ -3,15 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-
-enum Role {
-  SUPER_ADMIN
-  ADMIN
-  MANAGER
-  MEMBER
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -19,17 +12,22 @@ model User {
   email             String     @unique
   name              String?
   passwordHash      String
-  role              Role       @default(MEMBER)
+  role              String     @default("MEMBER")
   verificationToken String?
   isVerified        Boolean    @default(false)
   profilePic        String?
   workspaceId       String?
-  workspace         Workspace? @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace? @relation("UserWorkspace", fields: [workspaceId], references: [id])
+  ownedWorkspaces   Workspace[] @relation("WorkspaceOwner")
   teamId            String?
-  team              Team?      @relation(fields: [teamId], references: [id])
+  team              Team?      @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams          Team[]     @relation("TeamLead")
   tasks             Task[]     @relation("TaskAssignee")
   comments          Comment[]
   notifications     Notification[]
+  activityLogs      ActivityLog[] @relation("ActorLogs")
+  refreshTokens     RefreshToken[]
+  attachments       Attachment[]
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 }
@@ -38,8 +36,10 @@ model Workspace {
   id          String   @id @default(uuid())
   name        String
   ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id])
+  owner       User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  users       User[]   @relation("UserWorkspace")
   teams       Team[]
+  projects    Project[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -50,7 +50,7 @@ model Team {
   workspaceId   String
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   leadId        String?
-  lead          User?     @relation(fields: [leadId], references: [id])
+  lead          User?     @relation("TeamLead", fields: [leadId], references: [id])
   members       User[]    @relation("TeamMembers")
   projects      Project[]
   createdAt     DateTime @default(now())
@@ -93,8 +93,8 @@ model Task {
   order             Int      @default(0)
   recurrenceRule    String?
   dependencyId      String?
-  labels            String[] @default([])
-  customFields      Json?
+  labels            String   @default("[]")
+  customFields      String?
   comments          Comment[]
   attachments       Attachment[]
   createdAt         DateTime @default(now())
@@ -108,8 +108,8 @@ model Comment {
   author      User     @relation(fields: [authorId], references: [id])
   taskId      String
   task        Task @relation(fields: [taskId], references: [id])
-  mentions    String[] @default([])
-  attachments String[] @default([])
+  mentions    String   @default("[]")
+  attachments String   @default("[]")
   createdAt   DateTime @default(now())
 }
 
@@ -130,7 +130,7 @@ model Notification {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   type      String
-  payload   Json
+  payload   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
@@ -142,7 +142,7 @@ model ActivityLog {
   action    String
   entityId  String
   entityType String
-  details   Json?
+  details   String?
   timestamp DateTime @default(now())
 }
 

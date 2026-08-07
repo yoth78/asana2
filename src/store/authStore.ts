@@ -15,17 +15,14 @@ interface AuthState {
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
   setUser: (user: User | null) => void;
-  inviteUser: (email: string, name: string, role: Role, departmentId: string) => void;
+  inviteUser: (email: string, name: string, role: Role, departmentId: string) => Promise<void>;
   acceptInvitation: (invitationId: string) => void;
   declineInvitation: (invitationId: string) => void;
   updateUserRole: (userId: string, newRole: Role, departmentId?: string) => void;
   removeUser: (userId: string) => void;
   getUsersByDepartment: (departmentId: string) => User[];
+  fetchUsers: () => Promise<void>;
 }
-
-const initialMockUsers: User[] = [
-  { id: 'u1', email: 'superadmin@Teamflow.com', name: 'Sarah Johnson', role: 'SUPER_ADMIN', isVerified: true, createdAt: new Date().toISOString() },
-];
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -33,25 +30,25 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      allUsers: initialMockUsers,
+      allUsers: [],
       invitations: [],
 
       login: async (email: string, password?: string) => {
         set({ isLoading: true });
         try {
-          // Simulate network delay
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          if (password && password !== 'password123') {
-            throw new Error('Invalid credentials');
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Login failed');
           }
-          
-          const foundUser = get().allUsers.find(u => u.email === email);
-          if (!foundUser) {
-            throw new Error('User not found');
-          }
-          
-          set({ user: foundUser, isAuthenticated: true, isLoading: false });
+          const { user, token } = await res.json();
+          localStorage.setItem('token', token);
+          set({ user, isAuthenticated: true, isLoading: false });
+          get().fetchUsers();
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -61,28 +58,19 @@ export const useAuthStore = create<AuthState>()(
       signup: async (email: string, name: string, password?: string) => {
         set({ isLoading: true });
         try {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const existingUser = get().allUsers.find(u => u.email === email);
-          if (existingUser) {
-            throw new Error('User already exists');
+          const res = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, password })
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Signup failed');
           }
-
-          const newUser: User = {
-            id: `u${Date.now()}`,
-            email,
-            name,
-            role: 'SUPER_ADMIN',
-            isVerified: true,
-            createdAt: new Date().toISOString()
-          };
-
-          set((state) => ({
-            allUsers: [...state.allUsers, newUser],
-            user: newUser,
-            isAuthenticated: true,
-            isLoading: false
-          }));
+          const { user, token } = await res.json();
+          localStorage.setItem('token', token);
+          set({ user, isAuthenticated: true, isLoading: false });
+          get().fetchUsers();
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -90,24 +78,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        localStorage.removeItem('token');
+        set({ user: null, isAuthenticated: false, allUsers: [] });
       },
 
       updateProfile: (data: Partial<User>) => {
+        // Mock update for now
         set((state) => {
           if (!state.user) return state;
-          
           const updatedUser = { ...state.user, ...data };
-          
-          // Update user in allUsers as well
-          const updatedAllUsers = state.allUsers.map(u => 
-            u.id === updatedUser.id ? updatedUser : u
-          );
-          
-          return {
-            user: updatedUser,
-            allUsers: updatedAllUsers
-          };
+          return { user: updatedUser };
         });
       },
 
@@ -115,97 +95,74 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: !!user });
       },
 
-      inviteUser: (email: string, name: string, role: Role, departmentId: string) => {
-        const currentUser = get().user;
-        if (!currentUser) return;
+      inviteUser: async (email: string, name: string, role: Role, departmentId: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        try {
+          const res = await fetch('/api/auth/invite', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email, name, role, departmentId })
+          });
+          
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to send invite');
+          }
+          
+          // Also fetch users to update the UI
+          await get().fetchUsers();
+        } catch (error) {
+          console.error(error);
+          throw error;
+        }
+      },
 
-        const newInvitation: Invitation = {
-          id: `inv${Date.now()}`,
-          email,
-          name,
-          role,
-          departmentId,
-          status: 'pending',
-          invitedBy: currentUser.id,
-          createdAt: new Date().toISOString()
-        };
-
-        set((state) => ({
-          invitations: [...state.invitations, newInvitation]
-        }));
+      fetchUsers: async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+          const res = await fetch('/api/auth/users', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const users = await res.json();
+            set({ allUsers: users });
+          }
+        } catch (error) {
+          console.error('Failed to fetch users', error);
+        }
       },
 
       acceptInvitation: (invitationId: string) => {
-        set((state) => {
-          const invitation = state.invitations.find(i => i.id === invitationId);
-          if (!invitation) return state;
-
-          const updatedInvitations = state.invitations.map(i => 
-            i.id === invitationId ? { ...i, status: 'accepted' as InvitationStatus } : i
-          );
-
-          const newUser: User = {
-            id: `u${Date.now()}`,
-            email: invitation.email,
-            name: invitation.name,
-            role: invitation.role,
-            departmentId: invitation.departmentId,
-            isVerified: true,
-            createdAt: new Date().toISOString()
-          };
-
-          return {
-            invitations: updatedInvitations,
-            allUsers: [...state.allUsers, newUser]
-          };
-        });
+        // Implement when invitations DB table exists
       },
 
       declineInvitation: (invitationId: string) => {
-        set((state) => ({
-          invitations: state.invitations.map(i => 
-            i.id === invitationId ? { ...i, status: 'declined' as InvitationStatus } : i
-          )
-        }));
+        // Implement when invitations DB table exists
       },
 
       updateUserRole: (userId: string, newRole: Role, departmentId?: string) => {
-        set((state) => ({
-          allUsers: state.allUsers.map(u => {
-            if (u.id === userId) {
-              const updatedUser = { ...u, role: newRole };
-              if (departmentId !== undefined) {
-                updatedUser.departmentId = departmentId;
-              }
-              // If user is currently logged in, update their session too
-              if (state.user?.id === userId) {
-                // This doesn't strictly update the current state.user, so we do it below
-              }
-              return updatedUser;
-            }
-            return u;
-          }),
-          user: state.user?.id === userId ? { ...state.user, role: newRole, ...(departmentId !== undefined ? { departmentId } : {}) } : state.user
-        }));
+        // Implement API call
       },
 
       removeUser: (userId: string) => {
-        set((state) => ({
-          allUsers: state.allUsers.filter(u => u.id !== userId)
-        }));
+        // Implement API call
       },
 
       getUsersByDepartment: (departmentId: string) => {
-        return get().allUsers.filter(u => u.departmentId === departmentId);
+        return get().allUsers.filter(u => u.teamId === departmentId || (u as any).departmentId === departmentId);
       }
     }),
     {
-      name: 'auth-storage-v2',
+      name: 'auth-storage-v3',
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
-        allUsers: state.allUsers,
-        invitations: state.invitations
+        isAuthenticated: state.isAuthenticated
       })
     }
   )
