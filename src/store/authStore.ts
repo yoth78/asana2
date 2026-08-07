@@ -25,12 +25,6 @@ interface AuthState {
 
 const initialMockUsers: User[] = [
   { id: 'u1', email: 'superadmin@Teamflow.com', name: 'Sarah Johnson', role: 'SUPER_ADMIN', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u2', email: 'admin@Teamflow.com', name: 'Michael Chen', role: 'ADMIN', departmentId: 'dept1', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u3', email: 'admin2@Teamflow.com', name: 'Emily Davis', role: 'ADMIN', departmentId: 'dept2', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u4', email: 'member@Teamflow.com', name: 'James Wilson', role: 'MEMBER', departmentId: 'dept1', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u5', email: 'member2@Teamflow.com', name: 'Alex Turner', role: 'MEMBER', departmentId: 'dept1', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u6', email: 'member3@Teamflow.com', name: 'Lisa Park', role: 'MEMBER', departmentId: 'dept2', isVerified: true, createdAt: new Date().toISOString() },
-  { id: 'u7', email: 'member4@Teamflow.com', name: 'David Kim', role: 'MEMBER', departmentId: 'dept2', isVerified: true, createdAt: new Date().toISOString() },
 ];
 
 export const useAuthStore = create<AuthState>()(
@@ -206,7 +200,7 @@ export const useAuthStore = create<AuthState>()(
       }
     }),
     {
-      name: 'auth-storage',
+      name: 'auth-storage-v2',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
