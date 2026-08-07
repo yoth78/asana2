@@ -29,10 +29,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const fillDemo = (email: string) => {
-    setEmail(email);
-    setPassword('password123');
-  };
 
   return (
     <div className="auth-container">
@@ -97,25 +93,7 @@ export const LoginPage: React.FC = () => {
         <div className="auth-footer">
           <p>Don't have an account? <Link to="/signup">Create Workspace</Link></p>
         </div>
-        
-        <div className="demo-accounts">
-          <p>Demo Accounts <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(click to fill)</span></p>
-          <div className="demo-accounts-grid">
-            <button className="demo-account-btn super-admin" onClick={() => fillDemo('superadmin@Teamflow.com')}>
-              <span className="demo-role">Super Admin</span>
-              <span className="demo-email">superadmin@Teamflow.com</span>
-            </button>
-            <button className="demo-account-btn admin" onClick={() => fillDemo('admin@Teamflow.com')}>
-              <span className="demo-role">Admin</span>
-              <span className="demo-email">admin@Teamflow.com</span>
-            </button>
-            <button className="demo-account-btn member" onClick={() => fillDemo('member@Teamflow.com')}>
-              <span className="demo-role">Member</span>
-              <span className="demo-email">member@Teamflow.com</span>
-            </button>
-          </div>
-          <small style={{ color: 'var(--text-muted)' }}>Password for all: password123</small>
-        </div>
+
       </motion.div>
     </div>
   );
