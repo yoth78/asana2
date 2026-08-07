@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npx prisma generate && npx prisma db push && tsc -b && vite build",
+    "start": "tsx server/index.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },
