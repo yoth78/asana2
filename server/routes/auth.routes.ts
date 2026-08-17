@@ -3,9 +3,11 @@ import { prisma } from '../index';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import { isShortString, isValidEmail, rateLimit, ROLES } from '../security';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET is required');
 
 // Email Service for Invitations
 const sendInvitationEmail = async (email: string, inviteUrl: string) => {
@@ -88,9 +90,10 @@ export const resolveWorkspaceId = async (user: any) => {
   return null;
 };
 
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
+    if (!isValidEmail(email) || !isShortString(password, 1024)) return res.status(400).json({ error: 'Invalid email or password' });
     const user = await prisma.user.findUnique({ where: { email } });
     
     if (!user) {
@@ -124,9 +127,10 @@ router.get('/signup-status', async (_req, res) => {
   }
 });
 
-router.post('/signup', async (req, res) => {
+router.post('/signup', rateLimit(5, 60 * 60 * 1000), async (req, res) => {
   try {
-    const { email, name, password } = req.body;
+    const { email, name, password } = req.body || {};
+    if (!isValidEmail(email) || !isShortString(name, 200)) return res.status(400).json({ error: 'Valid name and email are required' });
 
     // After the first Super Admin exists, new people must join via invitation.
     // Open signup would create a second workspace and break invites against the wrong departments.
@@ -234,14 +238,16 @@ router.patch('/me', authenticate, async (req: any, res) => {
 router.get('/users', authenticate, async (req: any, res) => {
   try {
     // Only return verified users to keep pending invitations separated.
-    const users = await prisma.user.findMany({ where: { isVerified: true } });
+    const actor = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!actor) return res.status(404).json({ error: 'User not found' });
+    const workspaceId = await resolveWorkspaceId(actor);
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
+    const users = await prisma.user.findMany({ where: { isVerified: true, workspaceId } });
     res.json(users.map(mapUserForClient));
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-const ROLES = ['SUPER_ADMIN', 'ADMIN', 'MEMBER'];
 
 // Admin: change a user's role and/or department
 router.patch('/users/:id', authenticate, async (req: any, res) => {
@@ -412,11 +418,11 @@ router.delete('/users/:id', authenticate, async (req: any, res) => {
 });
 
 // Send an invitation email (creates an Invitation record in DB)
-router.post('/invite', authenticate, async (req: any, res) => {
+router.post('/invite', authenticate, rateLimit(20, 60 * 60 * 1000), async (req: any, res) => {
   try {
     const { email, name, role, departmentId } = req.body;
 
-    if (!email || !name) {
+    if (!isValidEmail(email) || !isShortString(name, 200) || (role !== undefined && !ROLES.includes(role))) {
       return res.status(400).json({ error: 'Name and email are required' });
     }
 
@@ -519,7 +525,7 @@ router.post('/invite', authenticate, async (req: any, res) => {
     });
   } catch (error) {
     console.error('Invite handler error:', error);
-    res.status(500).json({ error: 'Internal server error', details: String(error) });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -22,9 +22,5 @@ RUN npm run build
 # NODE_ENV is set only after the build so `npm ci` above still installs vite/typescript.
 ENV NODE_ENV=production
 ENV PORT=3001
-# Persist the SQLite file outside the image layer
-ENV DATABASE_URL=file:/data/dev.db
-VOLUME ["/data"]
-
 EXPOSE 3001
 CMD ["npm", "start"]

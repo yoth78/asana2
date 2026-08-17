@@ -1,48 +1,6 @@
 // Production entrypoint (`npm start`). Kept in Node rather than inline shell so
 // the same script runs under cmd.exe on Windows and /bin/sh on Railway/Render.
-import { mkdirSync, unlinkSync, existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import path from 'node:path';
-
-const resolveSqlitePath = () => {
-  const url = process.env.DATABASE_URL;
-  if (!url || !url.startsWith('file:')) return null;
-  const filePath = url.slice('file:'.length);
-  return path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
-};
-
-// Set WIPE_DB=true once in the host's env vars to delete the SQLite file on boot,
-// then remove that variable after a successful restart so data is not wiped again.
-const wipeDatabaseIfRequested = () => {
-  if (process.env.WIPE_DB !== 'true') return;
-
-  const filePath = resolveSqlitePath();
-  if (!filePath) {
-    console.warn('[start] WIPE_DB=true but DATABASE_URL is not a file: SQLite path — nothing deleted');
-    return;
-  }
-
-  for (const candidate of [filePath, `${filePath}-journal`, `${filePath}-wal`, `${filePath}-shm`]) {
-    if (existsSync(candidate)) {
-      unlinkSync(candidate);
-      console.log(`[start] WIPE_DB=true — deleted ${candidate}`);
-    }
-  }
-};
-
-// Railway/Render may mount a volume; SQLite will not create a missing directory.
-const ensureDatabaseDir = () => {
-  if (process.platform === 'win32') return;
-
-  const filePath = resolveSqlitePath();
-  if (!filePath || !path.isAbsolute(filePath)) return;
-
-  try {
-    mkdirSync(path.dirname(filePath), { recursive: true });
-  } catch (error) {
-    console.warn(`[start] could not create database directory: ${error.message}`);
-  }
-};
 
 const run = (command, args) =>
   new Promise((resolve, reject) => {
@@ -65,11 +23,13 @@ const startServer = () => {
   child.on('exit', code => process.exit(code ?? 1));
 };
 
-wipeDatabaseIfRequested();
-ensureDatabaseDir();
-// Prefer migrate deploy when migration files exist (Postgres); fall back to db push.
+if (!process.env.DATABASE_URL || !process.env.DIRECT_URL) {
+  console.error('[start] DATABASE_URL and DIRECT_URL are required');
+  process.exit(1);
+}
+
+// Production deployments must apply reviewed migrations only. Never use db push.
 run('prisma', ['migrate', 'deploy'])
-  .catch(() => run('prisma', ['db', 'push']))
   .then(startServer)
   .catch(error => {
     console.error(`[start] ${error.message}`);

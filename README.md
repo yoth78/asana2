@@ -1,32 +1,19 @@
-# React + TypeScript + Vite
+# TeamFlow
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+TeamFlow is a workspace-scoped project and task manager with departments, invitations, and role-based access.
 
-Currently, two official plugins are available:
+## Local setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Install Node 20 and run `npm ci`. Copy `.env.example` to `.env`, configure a Supabase Postgres database, then run `npx prisma migrate dev --name init` only for local development. Use `npm run dev` locally or `npm run build && npm start` to run the production server.
 
-## React Compiler
+## Environment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+`DATABASE_URL` is the pooled Supabase URL; `DIRECT_URL` is its direct URL for migrations. `JWT_SECRET` must be a long random production value (`openssl rand -base64 48`). Set `CORS_ORIGIN` to the exact frontend origin and `FRONTEND_URL` for invitation links. Production invitations require `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, and `EMAIL_FROM`.
 
-## Expanding the Oxlint configuration
+## Migrations and deployment
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Commit `prisma/migrations`. Create migrations locally using `npx prisma migrate dev --name <name>`. Production runs only `prisma migrate deploy`; never `prisma db push`. Set all environment variables on the host, build with `npm run build`, deploy, then confirm `/api/health` returns `database: connected`.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Backup and recovery
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Enable Supabase point-in-time recovery and scheduled backups. Regularly restore a backup into an isolated database and validate it. During recovery, stop writes, restore to a new database, verify integrity, update `DATABASE_URL` and `DIRECT_URL`, then redeploy.

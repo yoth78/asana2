@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index';
 import { authenticate, resolveWorkspaceId } from './auth.routes';
+import { isShortString, isValidDate, TASK_PRIORITIES, TASK_STATUSES } from '../security';
 
 const router = Router();
 router.use(authenticate);
@@ -25,13 +26,23 @@ const isAssigneeInWorkspace = async (assigneeId: string, workspaceId: string) =>
   return Boolean(assignee);
 };
 
+const canManageProject = (user: any, project: any) =>
+  user.role === 'SUPER_ADMIN' || (user.role === 'ADMIN' && user.teamId === project.teamId);
+
+const canManageTask = (user: any, project: any, task: any) =>
+  canManageProject(user, project) || (user.role === 'MEMBER' && task.assigneeId === user.id && project.teamId === user.teamId);
+
 // Get tasks for project
 router.get('/:projectId', async (req: any, res) => {
   try {
     const { projectId } = req.params;
-    const tasks = await prisma.task.findMany({
-      where: { projectId }
-    });
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const workspaceId = await resolveWorkspaceId(user);
+    const project = await prisma.project.findFirst({ where: { id: projectId, workspaceId: workspaceId || undefined } });
+    if (!workspaceId || !project) return res.status(403).json({ error: 'Project is not in your workspace' });
+    if (user.role !== 'SUPER_ADMIN' && project.teamId !== user.teamId) return res.status(403).json({ error: 'Project access denied' });
+    const tasks = await prisma.task.findMany({ where: { projectId, ...(user.role === 'MEMBER' ? { assigneeId: user.id } : {}) } });
     res.json(tasks.map(serializeTask));
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -51,6 +62,8 @@ router.post('/', async (req: any, res) => {
     if (!projectId) return res.status(400).json({ error: 'Invalid project' });
     const project = await prisma.project.findFirst({ where: { id: projectId, workspaceId } });
     if (!project) return res.status(400).json({ error: 'Invalid project' });
+    if (!isShortString(title, 500) || !isValidDate(dueDate) || (status && !TASK_STATUSES.includes(status)) || (priority && !TASK_PRIORITIES.includes(priority))) return res.status(400).json({ error: 'Invalid task fields' });
+    if (!canManageProject(user, project) && !(user.role === 'MEMBER' && project.teamId === user.teamId && assigneeId === user.id)) return res.status(403).json({ error: 'Not allowed to create this task' });
 
     if (assigneeId && !(await isAssigneeInWorkspace(assigneeId, workspaceId))) {
       return res.status(400).json({ error: 'Invalid assignee' });
@@ -89,6 +102,7 @@ router.put('/:id', async (req: any, res) => {
     if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
     const project = await prisma.project.findFirst({ where: { id: task.projectId, workspaceId } });
     if (!project) return res.status(403).json({ error: 'Task is not in your workspace' });
+    if (!canManageTask(user, project, task)) return res.status(403).json({ error: 'Not allowed to update this task' });
 
     // Whitelist only writable fields; anything else the frontend sends is ignored.
     const data: any = {};
@@ -96,6 +110,10 @@ router.put('/:id', async (req: any, res) => {
       if (body[field] === undefined) continue;
       data[field] = body[field];
     }
+    if ((data.title !== undefined && !isShortString(data.title, 500)) ||
+        (data.status !== undefined && !TASK_STATUSES.includes(data.status)) ||
+        (data.priority !== undefined && !TASK_PRIORITIES.includes(data.priority)) ||
+        !isValidDate(data.dueDate)) return res.status(400).json({ error: 'Invalid task fields' });
 
     if (data.dueDate !== undefined) {
       if (data.dueDate === null || data.dueDate === '') {
@@ -142,6 +160,7 @@ router.delete('/:id', async (req: any, res) => {
     if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
     const project = await prisma.project.findFirst({ where: { id: task.projectId, workspaceId } });
     if (!project) return res.status(403).json({ error: 'Task is not in your workspace' });
+    if (!canManageTask(user, project, task)) return res.status(403).json({ error: 'Not allowed to delete this task' });
 
     await prisma.task.delete({ where: { id } });
     res.status(204).send();

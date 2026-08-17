@@ -35,6 +35,10 @@ const syncLeadMembership = async (team: { id: string; leadId: string | null }) =
 router.get('/:workspaceId', async (req: any, res) => {
   try {
     const { workspaceId } = req.params;
+    const actor = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!actor) return res.status(404).json({ error: 'User not found' });
+    const actorWorkspaceId = await resolveWorkspaceId(actor);
+    if (!actorWorkspaceId || workspaceId !== actorWorkspaceId) return res.status(403).json({ error: 'Workspace access denied' });
     const teams = await prisma.team.findMany({
       where: { workspaceId },
       include: {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index';
 import { authenticate, resolveWorkspaceId } from './auth.routes';
+import { isShortString, isValidDate } from '../security';
 
 const router = Router();
 router.use(authenticate);
@@ -13,11 +14,14 @@ router.get('/:workspaceId', async (req: any, res) => {
     const { workspaceId } = req.params;
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    const actorWorkspaceId = await resolveWorkspaceId(user);
+    if (!actorWorkspaceId || workspaceId !== actorWorkspaceId) return res.status(403).json({ error: 'Workspace access denied' });
 
     const where: any = { workspaceId };
 
     // Members/Admins only see projects in their department/team.
-    if (user.role !== 'SUPER_ADMIN' && user.teamId) {
+    if (user.role !== 'SUPER_ADMIN') {
+      if (!user.teamId) return res.json([]);
       where.teamId = user.teamId;
     }
 
@@ -55,6 +59,9 @@ router.post('/', async (req: any, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Only admins can create a project' });
+    }
+    if (!isShortString(name, 200) || !isValidDate(startDate) || !isValidDate(dueDate)) {
+      return res.status(400).json({ error: 'Invalid project fields' });
     }
 
     const actorWorkspaceId = await resolveWorkspaceId(user);
