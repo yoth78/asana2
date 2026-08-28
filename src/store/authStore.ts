@@ -12,7 +12,7 @@ interface AuthState {
   
   // Actions
   login: (email: string, password?: string) => Promise<void>;
-  signup: (email: string, name: string, password?: string) => Promise<void>;
+  signup: (email: string, name: string, workspaceName: string, password?: string) => Promise<void>;
   acceptInvitationWithToken: (token: string, password: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -58,13 +58,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signup: async (email: string, name: string, password?: string) => {
+      signup: async (email: string, name: string, workspaceName: string, password?: string) => {
         set({ isLoading: true });
         try {
           const res = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, name, password })
+            body: JSON.stringify({ email, name, workspaceName, password })
           });
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));

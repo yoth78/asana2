@@ -15,6 +15,7 @@ export const SignupPage: React.FC = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupOpen, setSignupOpen] = useState<boolean | null>(inviteToken ? true : null);
@@ -72,7 +73,7 @@ export const SignupPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !workspaceName || !password || !confirmPassword) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -86,7 +87,7 @@ export const SignupPage: React.FC = () => {
     }
     
     try {
-      await signup(email, name, password);
+      await signup(email, name, workspaceName, password);
       toast.success('Workspace created! You are now the Super Admin.');
       navigate('/dashboard');
     } catch (err: any) {
@@ -300,6 +301,21 @@ export const SignupPage: React.FC = () => {
                 placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="workspaceName">Workspace Name</label>
+            <div className="input-icon-wrapper">
+              <Building2 className="input-icon" size={18} />
+              <input 
+                id="workspaceName"
+                type="text" 
+                placeholder="My Organization"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
                 disabled={isLoading}
               />
             </div>

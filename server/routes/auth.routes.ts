@@ -132,11 +132,15 @@ router.get('/signup-status', async (_req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    const { email, name, password } = req.body;
+    const { email, name, password, workspaceName } = req.body;
     
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    if (!workspaceName || !String(workspaceName).trim()) {
+      return res.status(400).json({ error: 'Workspace name is required' });
     }
 
     if (!password || String(password).length < 6) {
@@ -156,7 +160,7 @@ router.post('/signup', async (req, res) => {
 
     const workspace = await prisma.workspace.create({
       data: {
-        name: `${name || 'My'} Workspace`,
+        name: String(workspaceName).trim(),
         ownerId: user.id
       }
     });
