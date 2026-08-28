@@ -129,7 +129,7 @@ export const ProjectsPage: React.FC = () => {
               key={project.id} 
               project={project}
               tasks={tasks.filter(t => t.projectId === project.id)}
-              members={mockMembers}
+              members={project.members || []}
               index={index}
             />
           ))}

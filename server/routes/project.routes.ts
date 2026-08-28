@@ -20,14 +20,37 @@ router.get('/:workspaceId', async (req: any, res) => {
       where.members = { some: { userId: user.id } };
     }
 
-    const projects = await prisma.project.findMany({ where });
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profilePic: true
+              }
+            }
+          }
+        }
+      }
+    });
     res.json(
       projects.map(p => ({
         ...p,
         departmentId: p.teamId || undefined,
         color: p.color || DEFAULT_PROJECT_COLOR,
         ownerId: user.id,
-        description: p.description || ''
+        description: p.description || '',
+        members: p.members.map(m => ({
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          profilePic: m.user.profilePic,
+          role: m.role
+        }))
       }))
     );
   } catch (error) {
@@ -100,12 +123,39 @@ router.post('/', async (req: any, res) => {
         }
       }
     });
+    const projectWithMembers = await prisma.project.findUnique({
+      where: { id: project.id },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profilePic: true
+              }
+            }
+          }
+        }
+      }
+    });
+    if (!projectWithMembers) {
+      return res.status(500).json({ error: 'Failed to retrieve created project' });
+    }
     res.status(201).json({
-      ...project,
-      departmentId: project.teamId || undefined,
-      color: project.color || DEFAULT_PROJECT_COLOR,
+      ...projectWithMembers,
+      departmentId: projectWithMembers.teamId || undefined,
+      color: projectWithMembers.color || DEFAULT_PROJECT_COLOR,
       ownerId: user.id,
-      description: project.description || ''
+      description: projectWithMembers.description || '',
+      members: projectWithMembers.members.map(m => ({
+        id: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        profilePic: m.user.profilePic,
+        role: m.role
+      }))
     });
   } catch (error) {
     console.error('Project creation failed:', error);

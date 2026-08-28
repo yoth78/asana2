@@ -1,11 +1,13 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import './layout.css';
 
 export const Breadcrumb: React.FC = () => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
+  const { projects } = useWorkspaceStore();
 
   return (
     <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
@@ -14,8 +16,10 @@ export const Breadcrumb: React.FC = () => {
         const to = `/${pathnames.slice(0, index + 1).join('/')}`;
         const isLast = index === pathnames.length - 1;
         
-        // Basic formatting for breadcrumb segments
-        const title = value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, ' ');
+        const project = projects.find((p) => p.id === value);
+        const title = project
+          ? project.name
+          : value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, ' ');
 
         return (
           <React.Fragment key={to}>

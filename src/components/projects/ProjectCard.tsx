@@ -9,7 +9,13 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 interface ProjectCardProps {
   project: Project;
   tasks: Task[];
-  members: User[];
+  members: {
+    id: string;
+    name: string;
+    email: string;
+    profilePic?: string;
+    role?: string;
+  }[];
   index: number;
 }
 

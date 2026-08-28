@@ -9,6 +9,7 @@ import TimelineView from '../components/tasks/TimelineView';
 import TaskCreateModal from '../components/tasks/TaskCreateModal';
 import { Settings, Plus, LayoutGrid, List, Calendar as CalendarIcon, Clock, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Avatar } from '../components/common/Avatar';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,8 +46,19 @@ export default function ProjectDetailPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex -space-x-2 mr-4">
-              <div className="w-8 h-8 rounded-full bg-[#6C5CE7] border-2 border-[var(--bg-surface)] flex items-center justify-center text-xs text-white">JD</div>
-              <div className="w-8 h-8 rounded-full bg-[#00B894] border-2 border-[var(--bg-surface)] flex items-center justify-center text-xs text-white">AS</div>
+              {project.members && project.members.length > 0 ? (
+                project.members.map(member => (
+                  <Avatar 
+                    key={member.id} 
+                    src={member.profilePic} 
+                    name={member.name || member.email} 
+                    size="sm" 
+                    className="border-2 border-[var(--bg-surface)]"
+                  />
+                ))
+              ) : (
+                <div className="text-xs text-[var(--text-secondary)]">No members</div>
+              )}
             </div>
             <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors cursor-pointer">
               <Settings size={20} />

@@ -79,6 +79,13 @@ export interface Project {
   color: string;
   createdAt: string;
   updatedAt: string;
+  members?: {
+    id: string;
+    name: string;
+    email: string;
+    profilePic?: string;
+    role: string;
+  }[];
 }
 
 // ── Workspace ──
