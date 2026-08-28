@@ -24,6 +24,9 @@ router.get('/', async (req: any, res) => {
 // Create workspace
 router.post('/', async (req: any, res) => {
   try {
+    if (req.actor.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Only Super Admins can create workspaces' });
+    }
     const { name } = req.body;
     const workspace = await prisma.workspace.create({
       data: {
@@ -34,7 +37,8 @@ router.post('/', async (req: any, res) => {
     await addWorkspaceMember(req.user.userId, workspace.id, 'SUPER_ADMIN');
     res.status(201).json(workspace);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Workspace creation failed:', error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 });
 

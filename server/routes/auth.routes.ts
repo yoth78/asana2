@@ -118,8 +118,7 @@ router.post('/login', async (req, res) => {
 // Public: whether the first Super Admin signup is still allowed.
 router.get('/signup-status', async (_req, res) => {
   try {
-    const existingUsers = await prisma.user.count({ where: { isVerified: true } });
-    res.json({ open: existingUsers === 0 });
+    res.json({ open: true });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -128,15 +127,6 @@ router.get('/signup-status', async (_req, res) => {
 router.post('/signup', async (req, res) => {
   try {
     const { email, name, password } = req.body;
-
-    // After the first Super Admin exists, new people must join via invitation.
-    // Open signup would create a second workspace and break invites against the wrong departments.
-    const existingUsers = await prisma.user.count({ where: { isVerified: true } });
-    if (existingUsers > 0) {
-      return res.status(403).json({
-        error: 'A workspace already exists. Please use an invitation link to join.'
-      });
-    }
     
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -172,7 +162,8 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({ user: clientUser, token });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Signup/Workspace creation failed:', error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 });
 
