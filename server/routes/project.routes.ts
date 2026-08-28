@@ -163,6 +163,105 @@ router.post('/', async (req: any, res) => {
   }
 });
 
+router.put('/:id', async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, departmentId, deptId, teamId: bodyTeamId, color, memberIds } = req.body;
+    const user = req.actor;
+    const workspaceId = user.workspaceId;
+
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (project.workspaceId !== workspaceId) {
+      return res.status(403).json({ error: 'Project is not in your workspace' });
+    }
+
+    const isOwningDeptAdmin =
+      user.role === 'ADMIN' && Boolean(user.teamId) && project.teamId === user.teamId;
+    if (user.role !== 'SUPER_ADMIN' && !isOwningDeptAdmin) {
+      return res.status(403).json({ error: 'Not allowed to modify this project' });
+    }
+
+    let teamId = null;
+    const selectedDeptId = deptId || departmentId || bodyTeamId;
+    if (selectedDeptId && selectedDeptId !== "") {
+      teamId = selectedDeptId;
+    } else if (user.role === 'ADMIN') {
+      teamId = user.teamId;
+    }
+
+    if (teamId) {
+      const team = await prisma.team.findFirst({ where: { id: teamId, workspaceId } });
+      if (!team) {
+        return res.status(400).json({ error: 'Invalid department for this workspace' });
+      }
+    }
+
+    const updated = await prisma.project.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        teamId,
+        color: color || null
+      }
+    });
+
+    if (Array.isArray(memberIds)) {
+      await prisma.projectMember.deleteMany({ where: { projectId: id } });
+      
+      const uniqueMemberIds = Array.from(new Set([user.id, ...memberIds]));
+      await prisma.projectMember.createMany({
+        data: uniqueMemberIds.map(uid => ({
+          projectId: id,
+          userId: uid,
+          role: uid === user.id ? 'ADMIN' : 'MEMBER'
+        }))
+      });
+    }
+
+    const updatedWithMembers = await prisma.project.findUnique({
+      where: { id },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profilePic: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!updatedWithMembers) {
+      return res.status(500).json({ error: 'Failed to retrieve updated project' });
+    }
+
+    res.json({
+      ...updatedWithMembers,
+      departmentId: updatedWithMembers.teamId || undefined,
+      color: updatedWithMembers.color || DEFAULT_PROJECT_COLOR,
+      ownerId: user.id,
+      description: updatedWithMembers.description || '',
+      members: updatedWithMembers.members.map(m => ({
+        id: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        profilePic: m.user.profilePic,
+        role: m.role
+      }))
+    });
+  } catch (error) {
+    console.error('Project update failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.delete('/:id', async (req: any, res) => {
   try {
     const { id } = req.params;

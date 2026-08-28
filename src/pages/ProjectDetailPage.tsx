@@ -7,15 +7,21 @@ import ListView from '../components/tasks/ListView';
 import CalendarView from '../components/tasks/CalendarView';
 import TimelineView from '../components/tasks/TimelineView';
 import TaskCreateModal from '../components/tasks/TaskCreateModal';
+import { ProjectCreateModal } from '../components/projects/ProjectCreateModal';
 import { Settings, Plus, LayoutGrid, List, Calendar as CalendarIcon, Clock, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Avatar } from '../components/common/Avatar';
+
+import { useAuthStore } from '../store/authStore';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const project = useWorkspaceStore(state => state.projects.find(p => p.id === id));
   const { currentView, setCurrentView } = useUIStore();
+  const { allUsers } = useAuthStore();
+  const updateProject = useWorkspaceStore(state => state.updateProject);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   if (!project) {
     return <div className="p-8 text-center text-[var(--text-primary)]">Project not found</div>;
@@ -60,7 +66,10 @@ export default function ProjectDetailPage() {
                 <div className="text-xs text-[var(--text-secondary)]">No members</div>
               )}
             </div>
-            <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors cursor-pointer">
+            <button 
+              onClick={() => setIsEditModalOpen(true)}
+              className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors cursor-pointer"
+            >
               <Settings size={20} />
             </button>
             <button 
@@ -113,6 +122,32 @@ export default function ProjectDetailPage() {
         <TaskCreateModal 
           projectId={project.id} 
           onClose={() => setIsCreateModalOpen(false)} 
+        />
+      )}
+
+      {isEditModalOpen && (
+        <ProjectCreateModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={async (data) => {
+            await updateProject(project.id, {
+              name: data.name,
+              description: data.description,
+              color: data.color,
+              departmentId: data.departmentId,
+              memberIds: data.memberIds
+            } as any);
+          }}
+          departments={useWorkspaceStore.getState().departments}
+          users={allUsers}
+          isEdit={true}
+          initialData={{
+            name: project.name,
+            description: project.description || '',
+            color: project.color,
+            departmentId: project.departmentId || '',
+            memberIds: project.members?.map(m => m.id) || []
+          }}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -10,6 +10,14 @@ interface ProjectCreateModalProps {
   onSubmit: (data: { name: string; description: string; color: string; departmentId: string; memberIds: string[] }) => void | Promise<void>;
   departments: { id: string; name: string }[];
   users: User[];
+  isEdit?: boolean;
+  initialData?: {
+    name: string;
+    description: string;
+    color: string;
+    departmentId: string;
+    memberIds: string[];
+  };
 }
 
 const PRESET_COLORS = [
@@ -23,13 +31,31 @@ const PRESET_COLORS = [
   '#636E72', // Gray
 ];
 
-export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, onClose, onSubmit, departments, users }) => {
+export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  departments, 
+  users,
+  isEdit = false,
+  initialData
+}) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(initialData?.name || '');
+      setDescription(initialData?.description || '');
+      setDepartmentId(initialData?.departmentId || '');
+      setColor(initialData?.color || PRESET_COLORS[0]);
+      setSelectedUserIds(initialData?.memberIds || []);
+    }
+  }, [isOpen, initialData]);
 
   const handleUserToggle = (userId: string) => {
     setSelectedUserIds(prev => 
@@ -86,7 +112,7 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, 
             }}
           >
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Create New Project</h2>
+              <h2 className="text-xl font-bold">{isEdit ? 'Edit Project' : 'Create New Project'}</h2>
               <button onClick={onClose} className="btn btn-icon btn-ghost">
                 <X size={20} />
               </button>
@@ -208,7 +234,7 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, 
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Project'}
+                  {isSubmitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Project')}
                 </button>
               </div>
             </form>

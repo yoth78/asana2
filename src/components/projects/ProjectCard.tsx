@@ -5,6 +5,8 @@ import type { Project, Task, User } from '../../types';
 import { Calendar, CheckCircle2, MoreHorizontal, Pencil, Copy, Archive, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useAuthStore } from '../../store/authStore';
+import { ProjectCreateModal } from './ProjectCreateModal';
 
 interface ProjectCardProps {
   project: Project;
@@ -24,6 +26,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, tasks, member
   const deleteProject = useWorkspaceStore(state => state.deleteProject);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,7 +109,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, tasks, member
                 style={{ position: 'absolute', right: 0, top: '100%', zIndex: 10, display: 'block', minWidth: '150px' }}
                 onClick={e => e.stopPropagation()}
               >
-                <button className="dropdown-item"><Pencil size={14} /> Edit Project</button>
+                <button className="dropdown-item" onClick={(e) => { e.stopPropagation(); setShowMenu(false); setIsEditOpen(true); }}><Pencil size={14} /> Edit Project</button>
                 <button className="dropdown-item"><Copy size={14} /> Duplicate</button>
                 <button className="dropdown-item"><Archive size={14} /> Archive</button>
                 <div className="divider"></div>
@@ -208,6 +211,31 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, tasks, member
           )}
         </div>
       </div>
+      {isEditOpen && (
+        <ProjectCreateModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSubmit={async (data) => {
+            await useWorkspaceStore.getState().updateProject(project.id, {
+              name: data.name,
+              description: data.description,
+              color: data.color,
+              departmentId: data.departmentId,
+              memberIds: data.memberIds
+            } as any);
+          }}
+          departments={useWorkspaceStore.getState().departments}
+          users={useAuthStore.getState().allUsers}
+          isEdit={true}
+          initialData={{
+            name: project.name,
+            description: project.description || '',
+            color: project.color,
+            departmentId: project.departmentId || '',
+            memberIds: project.members?.map(m => m.id) || []
+          }}
+        />
+      )}
     </motion.div>
   );
 };

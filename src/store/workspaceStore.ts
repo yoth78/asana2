@@ -36,7 +36,7 @@ interface WorkspaceState {
   setProjects: (projects: Project[]) => void;
   setCurrentProject: (project: Project | null) => void;
   addProject: (project: Omit<Project, 'id'>) => Promise<void>;
-  updateProject: (id: string, project: Partial<Project>) => void;
+  updateProject: (id: string, project: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
   // Task Actions
@@ -204,15 +204,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set(state => ({ projects: [...state.projects, newProj] }));
   },
   
-  updateProject: (id, updatedFields) =>
+  updateProject: async (id, updatedFields) => {
+    const token = getToken();
+    const res = await fetch(`/api/projects/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(updatedFields)
+    });
+    await throwOnError(res, 'Failed to update project');
+    const updatedProj = await res.json();
     set((state) => ({
       projects: state.projects.map((proj) =>
-        proj.id === id ? { ...proj, ...updatedFields } : proj
+        proj.id === id ? updatedProj : proj
       ),
-      currentProject: state.currentProject?.id === id 
-        ? { ...state.currentProject, ...updatedFields }
-        : state.currentProject
-    })),
+      currentProject: state.currentProject?.id === id ? updatedProj : state.currentProject
+    }));
+  },
     
   deleteProject: async (id) => {
     const token = getToken();
