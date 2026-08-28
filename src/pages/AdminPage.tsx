@@ -776,25 +776,20 @@ const PayrollTab: React.FC = () => {
 
 const SettingsTab: React.FC = () => {
   const { currentWorkspace } = useWorkspaceStore();
-  const [name, setName] = useState(currentWorkspace?.name || '');
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success('Settings saved');
-  };
+  const name = currentWorkspace?.name || '';
 
   return (
     <div className="card-panel" style={{ maxWidth: '600px' }}>
       <h3 className="card-panel-title">Workspace Settings</h3>
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Workspace Name</label>
-          <input value={name} onChange={e => setName(e.target.value)} className="input" />
+          <input value={name} disabled className="input" style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
+            Workspace Name is immutable and cannot be changed.
+          </p>
         </div>
-        <div>
-          <button type="submit" className="btn btn-primary">Save Changes</button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 };

@@ -16,8 +16,8 @@ router.get('/:workspaceId', async (req: any, res) => {
     }
 
     const where: any = { workspaceId };
-    if (user.role !== 'SUPER_ADMIN' && user.teamId) {
-      where.teamId = user.teamId;
+    if (user.role !== 'SUPER_ADMIN') {
+      where.members = { some: { userId: user.id } };
     }
 
     const projects = await prisma.project.findMany({ where });
@@ -46,7 +46,8 @@ router.post('/', async (req: any, res) => {
       status,
       startDate,
       dueDate,
-      color
+      color,
+      memberIds
     } = req.body;
     let { workspaceId } = req.body;
 
@@ -61,13 +62,13 @@ router.post('/', async (req: any, res) => {
     }
     workspaceId = actorWorkspaceId;
 
-    let teamId = deptId || departmentId || bodyTeamId || user.teamId || null;
-    if (user.role === 'ADMIN') {
+    let teamId = null;
+    const selectedDeptId = deptId || departmentId || bodyTeamId;
+    if (selectedDeptId && selectedDeptId !== "") {
+      teamId = selectedDeptId;
+    } else if (user.role === 'ADMIN') {
       if (!user.teamId) {
         return res.status(400).json({ error: 'Department admin has no department assigned' });
-      }
-      if (teamId !== user.teamId) {
-        return res.status(403).json({ error: 'Department admins can only create projects in their own department' });
       }
       teamId = user.teamId;
     }
@@ -88,7 +89,15 @@ router.post('/', async (req: any, res) => {
         color: color || null,
         status: status || 'ACTIVE',
         startDate: startDate ? new Date(startDate) : null,
-        dueDate: dueDate ? new Date(dueDate) : null
+        dueDate: dueDate ? new Date(dueDate) : null,
+        members: {
+          create: [
+            // Always make the creator an ADMIN member
+            { userId: user.id, role: 'ADMIN' },
+            // Add all other selected members as MEMBER
+            ...(Array.isArray(memberIds) ? memberIds.filter(id => id !== user.id).map((id: string) => ({ userId: id, role: 'MEMBER' })) : [])
+          ]
+        }
       }
     });
     res.status(201).json({
@@ -99,7 +108,8 @@ router.post('/', async (req: any, res) => {
       description: project.description || ''
     });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Project creation failed:', error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 });
 

@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 
 export const ProjectsPage: React.FC = () => {
   const { projects, tasks, departments, addProject } = useWorkspaceStore();
-  const { user } = useAuthStore();
+  const { user, allUsers } = useAuthStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,12 +16,8 @@ export const ProjectsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState('Name');
 
   const visibleProjects = useMemo(() => {
-    if (!user) return [];
-    if (user.role === 'SUPER_ADMIN') return projects;
-    return projects.filter(
-      p => (p as any).departmentId === user.departmentId || (p as any).teamId === user.departmentId
-    );
-  }, [projects, user]);
+    return projects;
+  }, [projects]);
 
   const filteredProjects = useMemo(() => {
     return visibleProjects
@@ -41,12 +37,13 @@ export const ProjectsPage: React.FC = () => {
       });
   }, [visibleProjects, tasks, searchQuery, statusFilter, sortBy]);
 
-  const handleCreateProject = async (data: { name: string; description: string; color: string; departmentId: string }) => {
+  const handleCreateProject = async (data: { name: string; description: string; color: string; departmentId: string; memberIds: string[] }) => {
     await addProject({
       name: data.name,
       description: data.description,
       color: data.color,
       departmentId: data.departmentId,
+      memberIds: data.memberIds,
       workspaceId: user?.workspaceId || '',
       ownerId: user?.id || '',
       createdAt: new Date().toISOString(),
@@ -160,6 +157,7 @@ export const ProjectsPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)} 
         onSubmit={handleCreateProject}
         departments={departments}
+        users={allUsers}
       />
     </div>
   );

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { User } from '../../types';
 
 interface ProjectCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; description: string; color: string; departmentId: string }) => void | Promise<void>;
+  onSubmit: (data: { name: string; description: string; color: string; departmentId: string; memberIds: string[] }) => void | Promise<void>;
   departments: { id: string; name: string }[];
+  users: User[];
 }
 
 const PRESET_COLORS = [
@@ -21,12 +23,19 @@ const PRESET_COLORS = [
   '#636E72', // Gray
 ];
 
-export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, onClose, onSubmit, departments }) => {
+export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, onClose, onSubmit, departments, users }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [departmentId, setDepartmentId] = useState(departments[0]?.id || '');
+  const [departmentId, setDepartmentId] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleUserToggle = (userId: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +46,7 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, 
     
     setIsSubmitting(true);
     try {
-      await onSubmit({ name, description, color, departmentId });
+      await onSubmit({ name, description, color, departmentId, memberIds: selectedUserIds });
       toast.success('Project created successfully!');
       onClose();
 
@@ -45,7 +54,8 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, 
       setName('');
       setDescription('');
       setColor(PRESET_COLORS[0]);
-      setDepartmentId(departments[0]?.id || '');
+      setDepartmentId('');
+      setSelectedUserIds([]);
     } catch (err: any) {
       toast.error(err.message || 'Failed to create project');
     } finally {
@@ -117,10 +127,42 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({ isOpen, 
                   value={departmentId}
                   onChange={e => setDepartmentId(e.target.value)}
                 >
+                  <option value="">None (Optional)</option>
                   {departments.map(dept => (
                     <option key={dept.id} value={dept.id}>{dept.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Assign People</label>
+                <div style={{
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px',
+                  backgroundColor: 'var(--bg-body)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  {users.length === 0 ? (
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>No members in workspace</span>
+                  ) : (
+                    users.map(u => (
+                      <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUserIds.includes(u.id)}
+                          onChange={() => handleUserToggle(u.id)}
+                          style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                        />
+                        <span>{u.name} ({u.email})</span>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-4">

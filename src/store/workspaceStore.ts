@@ -195,7 +195,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         departmentId: (projectData as any).departmentId,
         deptId: (projectData as any).departmentId,
         color: (projectData as any).color,
-        workspaceId: projectData.workspaceId
+        workspaceId: projectData.workspaceId,
+        memberIds: (projectData as any).memberIds
       })
     });
     await throwOnError(res, 'Failed to create project');

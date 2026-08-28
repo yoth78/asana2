@@ -28,6 +28,21 @@ const isAssigneeInWorkspace = (assigneeId: string, workspaceId: string) =>
 router.get('/:projectId', async (req: any, res) => {
   try {
     const { projectId } = req.params;
+    const user = req.actor;
+    const workspaceId = user.workspaceId;
+
+    const project = await prisma.project.findFirst({ where: { id: projectId, workspaceId } });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    if (user.role !== 'SUPER_ADMIN') {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId, userId: user.id }
+      });
+      if (!isMember) {
+        return res.status(403).json({ error: 'You do not have permission to view tasks for this project' });
+      }
+    }
+
     const tasks = await prisma.task.findMany({
       where: { projectId }
     });
@@ -47,6 +62,15 @@ router.post('/', async (req: any, res) => {
     if (!projectId) return res.status(400).json({ error: 'Invalid project' });
     const project = await prisma.project.findFirst({ where: { id: projectId, workspaceId } });
     if (!project) return res.status(400).json({ error: 'Invalid project' });
+
+    if (user.role !== 'SUPER_ADMIN') {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId, userId: user.id }
+      });
+      if (!isMember) {
+        return res.status(403).json({ error: 'You do not have permission to add tasks to this project' });
+      }
+    }
 
     if (assigneeId && !(await isAssigneeInWorkspace(assigneeId, workspaceId))) {
       return res.status(400).json({ error: 'Invalid assignee' });
@@ -83,6 +107,15 @@ router.put('/:id', async (req: any, res) => {
     const workspaceId = user.workspaceId;
     const project = await prisma.project.findFirst({ where: { id: task.projectId, workspaceId } });
     if (!project) return res.status(403).json({ error: 'Task is not in your workspace' });
+
+    if (user.role !== 'SUPER_ADMIN') {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId: user.id }
+      });
+      if (!isMember) {
+        return res.status(403).json({ error: 'You do not have permission to modify tasks in this project' });
+      }
+    }
 
     // Whitelist only writable fields; anything else the frontend sends is ignored.
     const data: any = {};
@@ -134,6 +167,15 @@ router.delete('/:id', async (req: any, res) => {
     const workspaceId = user.workspaceId;
     const project = await prisma.project.findFirst({ where: { id: task.projectId, workspaceId } });
     if (!project) return res.status(403).json({ error: 'Task is not in your workspace' });
+
+    if (user.role !== 'SUPER_ADMIN') {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId: user.id }
+      });
+      if (!isMember) {
+        return res.status(403).json({ error: 'You do not have permission to delete tasks in this project' });
+      }
+    }
 
     await prisma.task.delete({ where: { id } });
     res.status(204).send();

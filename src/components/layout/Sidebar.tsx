@@ -149,18 +149,12 @@ export const Sidebar: React.FC = () => {
           <div className="nav-section" style={{ marginTop: '20px' }}>
             <h4 className="section-title">PROJECTS</h4>
             <ul className="nav-list">
-              {projects
-                .filter(p =>
-                  user.role === 'SUPER_ADMIN' ||
-                  (p as any).departmentId === user.departmentId ||
-                  (p as any).teamId === user.departmentId
-                )
-                .map(project => (
-                  <li key={project.id} className="nav-item" style={{ cursor: 'pointer' }} title={project.name} onClick={() => navigate(`/projects/${project.id}`)}>
-                    <span className="project-color" style={{ backgroundColor: project.color || '#6C5CE7', width: 8, height: 8, borderRadius: '50%', marginRight: 12, flexShrink: 0 }} />
-                    <span className="nav-label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
-                  </li>
-                ))}
+              {projects.map(project => (
+                <li key={project.id} className="nav-item" style={{ cursor: 'pointer' }} title={project.name} onClick={() => navigate(`/projects/${project.id}`)}>
+                  <span className="project-color" style={{ backgroundColor: project.color || '#6C5CE7', width: 8, height: 8, borderRadius: '50%', marginRight: 12, flexShrink: 0 }} />
+                  <span className="nav-label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
+                </li>
+              ))}
             </ul>
           </div>
         )}
