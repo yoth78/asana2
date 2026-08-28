@@ -18,16 +18,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 // Email Service for Invitations
 const sendInvitationEmail = async (email: string, inviteUrl: string) => {
   let transporter;
-  const isSmtpConfigured = Boolean(process.env.SMTP_HOST);
+  const smtpHost = process.env.SMTP_HOST || process.env.SMTP_Host;
+  const smtpPort = process.env.SMTP_PORT || process.env.SMTP_Port;
+  const smtpUser = process.env.SMTP_USER || process.env.SMTP_User;
+  const smtpPass = process.env.SMTP_PASS || process.env.SMTP_Pass;
+  const smtpSecure = process.env.SMTP_SECURE || process.env.SMTP_Secure;
+
+  const isSmtpConfigured = Boolean(smtpHost);
 
   if (isSmtpConfigured) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      host: smtpHost,
+      port: Number(smtpPort) || 587,
+      secure: smtpSecure === 'true',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
   } else {
