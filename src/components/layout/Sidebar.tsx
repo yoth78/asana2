@@ -46,7 +46,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon: Icon, label }) => {
 export const Sidebar: React.FC = () => {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
-  const { departments, projects } = useWorkspaceStore();
+  const { departments, projects, currentWorkspace } = useWorkspaceStore();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -115,9 +115,23 @@ export const Sidebar: React.FC = () => {
       transition={{ duration: 0.3, type: 'spring', bounce: 0 }}
     >
       <div className="sidebar-header">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Hexagon size={24} style={{ color: 'var(--primary, #9b51e0)' }} />
-          {!sidebarCollapsed && <span className="brand-text" style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>Teamflow</span>}
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+          <Hexagon size={24} style={{ color: 'var(--primary, #9b51e0)', flexShrink: 0 }} />
+          {!sidebarCollapsed && (
+            <span 
+              className="brand-text" 
+              style={{ 
+                fontWeight: 'bold', 
+                fontSize: '1.1rem', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap' 
+              }}
+              title={currentWorkspace?.name || 'Teamflow'}
+            >
+              {currentWorkspace?.name || 'Teamflow'}
+            </span>
+          )}
         </div>
         <button className="collapse-btn" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}>
           {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
